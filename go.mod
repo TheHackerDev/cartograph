@@ -1,0 +1,34 @@
+module github.com/TheHackerDev/cartograph
+
+go 1.22
+
+require (
+	github.com/andybalholm/brotli v1.0.4
+	github.com/gofrs/uuid v4.0.0+incompatible
+	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/gorilla/websocket v1.5.0
+	github.com/jackc/pgtype v1.11.0
+	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
+	github.com/jackc/pgx/v5 v5.4.2
+	github.com/lib/pq v1.10.2
+	github.com/schollz/progressbar/v3 v3.13.1
+	github.com/sirupsen/logrus v1.9.0
+	golang.org/x/crypto v0.11.0
+	golang.org/x/sync v0.1.0
+)
+
+require (
+	github.com/gofrs/uuid/v5 v5.0.0 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
+	github.com/jackc/pgx/v4 v4.16.1 // indirect
+	github.com/jackc/puddle/v2 v2.2.0 // indirect
+	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
+	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/stretchr/testify v1.8.3 // indirect
+	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/term v0.11.0 // indirect
+	golang.org/x/text v0.11.0 // indirect
+)

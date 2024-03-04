@@ -1,0 +1,9 @@
+config.toml
+/.idea
+/dist
+/internal/analyzer/*.csv
+/cmd/tmp/common-crawl/parse-wat/watparser
+/cmd/webui/webui
+/cartograph.iml
+/cmd/tmp
+/.run/

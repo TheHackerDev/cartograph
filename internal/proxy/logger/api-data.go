@@ -1,0 +1,80 @@
+/*******************************************************************************
+ * Copyright 2018-2024 Aaron Hnatiw
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ ******************************************************************************/
+
+package logger
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/TheHackerDev/cartograph/internal/shared/datatypes"
+	internalHttp "github.com/TheHackerDev/cartograph/internal/shared/http"
+)
+
+// DataAPIHandler is a http handler function that handles requests to the data API, using DataFilter objects.
+func DataAPIHandler(logger *Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Only allow POST requests (or OPTIONS)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			w.Header().Set("Allow", "POST")
+			return
+		} else if r.Method != http.MethodPost {
+			http.Error(w, "invalid method", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Attempt to parse the data filter object from the request
+		reqBody, bodyCopy, bodyReadErr := internalHttp.ReadBody(r.Body)
+		r.Body = bodyCopy
+		if bodyReadErr != nil {
+			http.Error(w, fmt.Sprintf("unable to read request body: %s", bodyReadErr.Error()), http.StatusInternalServerError)
+			return
+		}
+		var df datatypes.DataFilter
+		if jsonUnMarshalErr := json.Unmarshal(reqBody, &df); jsonUnMarshalErr != nil {
+			http.Error(w, fmt.Sprintf("unable to parse JSON request body into data filter object: %s", jsonUnMarshalErr.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		// Get the data
+		data, getErr := logger.getData(&df)
+		if getErr != nil {
+			http.Error(w, fmt.Sprintf("unable to get data for given data filter: %s", getErr.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		// Convert http data to JSON to return to client
+		dataJson, dJsonMarshalErr := json.Marshal(data)
+		if dJsonMarshalErr != nil {
+			http.Error(w, fmt.Sprintf("unable to convert data to JSON: %s", dJsonMarshalErr.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		// Set the appropriate header for the content type in the response
+		w.Header().Set("Content-Type", "application/json")
+
+		// Write the response
+		if _, writeErr := w.Write(dataJson); writeErr != nil {
+			http.Error(w, fmt.Sprintf("problem writing JSON response back: %s", writeErr.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		return
+
+	}
+}
