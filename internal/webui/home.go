@@ -27,14 +27,14 @@ import (
 	"github.com/TheHackerDev/cartograph/internal/shared/users"
 )
 
-//go:embed templates/home/home.html
+//go:embed templates/home/home.gohtml
 var homeFS embed.FS
 
 var homeTmpl *template.Template
 
 func init() {
 	var err error
-	homeTmpl, err = template.ParseFS(homeFS, "templates/home/home.html")
+	homeTmpl, err = template.ParseFS(homeFS, "templates/home/home.gohtml")
 	if err != nil {
 		panic(fmt.Errorf("unable to parse home template: %w", err))
 	}

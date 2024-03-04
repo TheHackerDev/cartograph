@@ -25,14 +25,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//go:embed templates/login/login.html
+//go:embed templates/login/login.gohtml
 var loginFS embed.FS
 
 var loginTmpl *template.Template
 
 func init() {
 	var err error
-	loginTmpl, err = template.ParseFS(loginFS, "templates/login/login.html")
+	loginTmpl, err = template.ParseFS(loginFS, "templates/login/login.gohtml")
 	if err != nil {
 		panic(fmt.Errorf("unable to parse login template: %w", err))
 	}

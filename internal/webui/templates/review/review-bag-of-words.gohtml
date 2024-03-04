@@ -27,7 +27,8 @@
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
         <a class="navbar-brand" href="/">Home</a>
-        <button aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler"
+        <button aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation"
+                class="navbar-toggler"
                 data-bs-target="#navbarNavDropdown" data-bs-toggle="collapse" type="button">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -51,7 +52,8 @@
             <ul class="navbar-nav">
                 <li class="nav-item dropdown">
                     {{ /*Show the review link if the user has admin, review_bow, or review_interesting user roles.*/ }}
-                    <a id="navbarDropdownMenuLink" aria-expanded="false" class="nav-link dropdown-toggle" data-bs-toggle="dropdown"
+                    <a id="navbarDropdownMenuLink" aria-expanded="false" class="nav-link dropdown-toggle"
+                       data-bs-toggle="dropdown"
                        href="#" role="button">
                         Review
                     </a>
@@ -79,15 +81,15 @@
         </div>
         <div class="row">
             <div class="col">
-                {{ /*Show button links to every bag of words type (0 - 3, inclusive)*/ }}
-                <a .BagOfWordsType 0}}class="btn btn-primary" eq href="#" href="/review/bag-of-words?type=0" {{else}}class="btn btn-outline-primary"
-                   {{end}} {{if>Parameter Keys</a>
-                <a .BagOfWordsType 1}}class="btn btn-primary" eq href="#" href="/review/bag-of-words?type=1" {{else}}class="btn btn-outline-primary"
-                   {{end}} {{if>Header Keys</a>
-                <a .BagOfWordsType 2}}class="btn btn-primary" eq href="#" href="/review/bag-of-words?type=2" {{else}}class="btn btn-outline-primary"
-                   {{end}} {{if>Server Values</a>
-                <a .BagOfWordsType 3}}class="btn btn-primary" eq href="#" href="/review/bag-of-words?type=3" {{else}}class="btn btn-outline-primary"
-                   {{end}} {{if>Cookie Keys</a>
+                {{/*Show button links to every bag of words type (0 - 3, inclusive)*/}}
+                <a {{if eq .BagOfWordsType 0}}class="btn btn-primary" href="#" {{else}}class="btn btn-outline-primary"
+                   href="/review/bag-of-words?type=0" {{end}}>Parameter Keys</a>
+                <a {{if eq .BagOfWordsType 1}}class="btn btn-primary" href="#" {{else}}class="btn btn-outline-primary"
+                   href="/review/bag-of-words?type=1" {{end}}>Header Keys</a>
+                <a {{if eq .BagOfWordsType 2}}class="btn btn-primary" href="#" {{else}}class="btn btn-outline-primary"
+                   href="/review/bag-of-words?type=2"{{end}}>Server Values</a>
+                <a {{if eq .BagOfWordsType 3}}class="btn btn-primary" href="#" {{else}}class="btn btn-outline-primary"
+                   href="/review/bag-of-words?type=3" {{end}}>Cookie Keys</a>
             </div>
         </div>
         <div class="col-12 text-center m-auto">
@@ -119,12 +121,11 @@
             </table>
         </div>
         <div class="col-12 m-auto">
-            <button %d class="btn btn-primary"
-                    hx-post="/review/bag-of-words?type={{printf " type="button"
-            " .BagOfWordsType}}"
-            hx-target="#bow-tbody"
-            hx-vals='js:{keep:bowKeepValues(),remove:bowRemoveValues(),flagged:bowFlaggedValues(),unflagged:bowUnflaggedValues()}'>
-            Submit & Next
+            <button class="btn btn-primary" type="button"
+                    hx-post="/review/bag-of-words?type={{printf "%d" .BagOfWordsType}}"
+                    hx-target="#bow-tbody"
+                    hx-vals='js:{keep:bowKeepValues(),remove:bowRemoveValues(),flagged:bowFlaggedValues(),unflagged:bowUnflaggedValues()}'>
+                Submit & Next
             </button>
         </div>
     </div>

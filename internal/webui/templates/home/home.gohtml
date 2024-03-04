@@ -32,26 +32,26 @@
                 data-bs-target="#navbarNavDropdown" data-bs-toggle="collapse" type="button">
             <span class="navbar-toggler-icon"></span>
         </button>
-        {{ /*Only show the review link if the user has admin, review_bow, or review_interesting user roles.*/ }}
-        {{ $hasAdminRole := false }}
-        {{ $hasReviewBowRole := false }}
-        {{ $hasReviewInterestingRole := false }}
-        {{ range.UserRoles }}
-        {{ if or(eq. "admin") }}
-        {{ $hasAdminRole = true }}
-        {{ end }}
-        {{ if eq. "review_bow" }}
-        {{ $hasReviewBowRole = true }}
-        {{ end }}
-        {{ if eq. "review_interesting" }}
-        {{ $hasReviewInterestingRole = true }}
-        {{ end }}
-        {{ end }}
-        {{ if or $hasAdminRole $hasReviewBowRole $hasReviewInterestingRole }}
+        {{/*Only show the review link if the user has admin, review_bow, or review_interesting user roles.*/}}
+        {{$hasAdminRole := false}}
+        {{$hasReviewBowRole := false}}
+        {{$hasReviewInterestingRole := false}}
+        {{range .UserRoles}}
+        {{if or (eq . "admin")}}
+        {{$hasAdminRole = true}}
+        {{end}}
+        {{if eq . "review_bow"}}
+        {{$hasReviewBowRole = true}}
+        {{end}}
+        {{if eq . "review_interesting"}}
+        {{$hasReviewInterestingRole = true}}
+        {{end}}
+        {{end}}
+        {{if or $hasAdminRole $hasReviewBowRole $hasReviewInterestingRole}}
         <div id="navbarNavDropdown" class="collapse navbar-collapse">
             <ul class="navbar-nav">
                 <li class="nav-item dropdown">
-                    {{ /*Show the review link if the user has admin, review_bow, or review_interesting user roles.*/ }}
+                    {{/*Show the review link if the user has admin, review_bow, or review_interesting user roles.*/}}
                     <a id="navbarDropdownMenuLink" aria-expanded="false" class="nav-link dropdown-toggle"
                        data-bs-toggle="dropdown"
                        href="#" role="button">
@@ -61,19 +61,19 @@
                         {{
                             /*Only show the review interesting link if the user has admin or review_interesting user
                              roles*/
-                        }}
-                        {{ if or $hasAdminRole $hasReviewInterestingRole }}
+                       }}
+                        {{if or $hasAdminRole $hasReviewInterestingRole}}
                         <li><a class="dropdown-item" href="/review/interesting">Interesting</a></li>
-                        {{ end }}
-                        {{ /*Only show the review bag of words link if the user has admin or review_bow user roles*/ }}
-                        {{ if or $hasAdminRole $hasReviewBowRole }}
+                        {{end}}
+                        {{/*Only show the review bag of words link if the user has admin or review_bow user roles*/}}
+                        {{if or $hasAdminRole $hasReviewBowRole}}
                         <li><a class="dropdown-item" href="/review/bag-of-words">Bag-of-words</a></li>
-                        {{ end }}
+                        {{end}}
                     </ul>
                 </li>
             </ul>
         </div>
-        {{ end }}
+        {{end}}
     </div>
 </nav>
 <div class="container">

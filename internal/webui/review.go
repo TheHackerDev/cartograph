@@ -54,14 +54,14 @@ func validateBagOfWordsType(t int) bool {
 	return t >= 0 && t <= 3
 }
 
-//go:embed templates/review/review-bag-of-words.html
+//go:embed templates/review/review-bag-of-words.gohtml
 var reviewBagOfWordsFS embed.FS
 
 var reviewBagOfWordsTmpl *template.Template
 
 func init() {
 	var err error
-	reviewBagOfWordsTmpl, err = template.ParseFS(reviewBagOfWordsFS, "templates/review/review-bag-of-words.html")
+	reviewBagOfWordsTmpl, err = template.ParseFS(reviewBagOfWordsFS, "templates/review/review-bag-of-words.gohtml")
 	if err != nil {
 		panic(fmt.Errorf("unable to parse review-bag-of-words template: %w", err))
 	}
