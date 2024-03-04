@@ -279,27 +279,27 @@ func writeRootCertsAndKeysToFs() error {
 
 	// Write the root CA certificates and keys to the filesystem
 	osCertPath := "/ca-certificates"
-	rootCertPemRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertPemRsaFilename), rootCertPemRsaRaw, 0644)
+	rootCertPemRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertPemRsaFilename), rootCertPemRsaRaw, 0666)
 	if rootCertPemRsaWriteErr != nil {
 		return fmt.Errorf("unable to write PEM-formatted RSA root CA certificate to filesystem: %w", rootCertPemRsaWriteErr)
 	}
-	rootCertDerRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertDerRsaFilename), rootCertDerRsaRaw, 0644)
+	rootCertDerRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertDerRsaFilename), rootCertDerRsaRaw, 0666)
 	if rootCertDerRsaWriteErr != nil {
 		return fmt.Errorf("unable to write DER-formatted RSA root CA certificate to filesystem: %w", rootCertDerRsaWriteErr)
 	}
-	rootCertPemEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertPemEcdsaFilename), rootCertPemEcdsaRaw, 0644)
+	rootCertPemEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertPemEcdsaFilename), rootCertPemEcdsaRaw, 0666)
 	if rootCertPemEcdsaWriteErr != nil {
 		return fmt.Errorf("unable to write PEM-formatted ECDSA root CA certificate to filesystem: %w", rootCertPemEcdsaWriteErr)
 	}
-	rootCertDerEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertDerEcdsaFilename), rootCertDerEcdsaRaw, 0644)
+	rootCertDerEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootCertDerEcdsaFilename), rootCertDerEcdsaRaw, 0666)
 	if rootCertDerEcdsaWriteErr != nil {
 		return fmt.Errorf("unable to write DER-formatted ECDSA root CA certificate to filesystem: %w", rootCertDerEcdsaWriteErr)
 	}
-	rootKeyPemRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootKeyPemRsaFilename), rootKeyPemRsaRaw, 0600)
+	rootKeyPemRsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootKeyPemRsaFilename), rootKeyPemRsaRaw, 0666)
 	if rootKeyPemRsaWriteErr != nil {
 		return fmt.Errorf("unable to write PEM-formatted RSA root CA private key to filesystem: %w", rootKeyPemRsaWriteErr)
 	}
-	rootKeyPemEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootKeyPemEcdsaFilename), rootKeyPemEcdsaRaw, 0600)
+	rootKeyPemEcdsaWriteErr := os.WriteFile(fmt.Sprintf("%s/%s", osCertPath, rootKeyPemEcdsaFilename), rootKeyPemEcdsaRaw, 0666)
 	if rootKeyPemEcdsaWriteErr != nil {
 		return fmt.Errorf("unable to write PEM-formatted ECDSA root CA private key to filesystem: %w", rootKeyPemEcdsaWriteErr)
 	}

@@ -124,7 +124,7 @@ func parseRootCA(rootCertIn, rootKeyIn, rootCertPEMOut, rootCertDEROut, rootKeyO
 	}
 
 	// Write the PEM file out
-	if pemWriteErr := ioutil.WriteFile(rootCertPEMOut, certPEMData, 0600); pemWriteErr != nil {
+	if pemWriteErr := ioutil.WriteFile(rootCertPEMOut, certPEMData, 0666); pemWriteErr != nil {
 		return ca{}, fmt.Errorf("unable to write PEM-encoded root certificate data to file %s: %w", rootCertPEMOut, pemWriteErr)
 	}
 
@@ -135,7 +135,7 @@ func parseRootCA(rootCertIn, rootKeyIn, rootCertPEMOut, rootCertDEROut, rootKeyO
 	}
 
 	// Write the DER file out
-	if derWriteErr := ioutil.WriteFile(rootCertDEROut, rootDER.Bytes, 0600); derWriteErr != nil {
+	if derWriteErr := ioutil.WriteFile(rootCertDEROut, rootDER.Bytes, 0666); derWriteErr != nil {
 		return ca{}, fmt.Errorf("unable to write DER-encoded root certificate data to file %s: %w", rootCertDEROut, derWriteErr)
 	}
 
@@ -153,7 +153,7 @@ func parseRootCA(rootCertIn, rootKeyIn, rootCertPEMOut, rootCertDEROut, rootKeyO
 	}
 
 	// Write private key to file
-	if keyWriteErr := ioutil.WriteFile(rootKeyOut, keyData, 0600); keyWriteErr != nil {
+	if keyWriteErr := ioutil.WriteFile(rootKeyOut, keyData, 0666); keyWriteErr != nil {
 		return ca{}, fmt.Errorf("unable to write root CA private key to file %s: %w", rootKeyOut, keyWriteErr)
 	}
 
@@ -222,17 +222,17 @@ func parseRootCA(rootCertIn, rootKeyIn, rootCertPEMOut, rootCertDEROut, rootKeyO
 // intermediate CA certificate.
 func writeRootCA(pemCertFileOut, derCertFileOut, keyFileOut string) (ca, error) {
 	// Open files into which we will write the root CA data
-	rootCertPEMOut, err := os.OpenFile(pemCertFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	rootCertPEMOut, err := os.OpenFile(pemCertFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return ca{}, fmt.Errorf("failed to open file %s for writing: %w", pemCertFileOut, err)
 	}
 	defer handleFileClose(rootCertPEMOut)
-	rootCertDEROut, err := os.OpenFile(derCertFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	rootCertDEROut, err := os.OpenFile(derCertFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return ca{}, fmt.Errorf("failed to open file %s for writing: %w", derCertFileOut, err)
 	}
 	defer handleFileClose(rootCertDEROut)
-	rootKeyOut, err := os.OpenFile(keyFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	rootKeyOut, err := os.OpenFile(keyFileOut, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return ca{}, fmt.Errorf("failed to open file %s for writing: %w", keyFileOut, err)
 	}
@@ -253,12 +253,12 @@ func writeRootCA(pemCertFileOut, derCertFileOut, keyFileOut string) (ca, error) 
 // issuer.
 func writeIntermediateCA(certFile, keyFile string, c ca) error {
 	// Open files into which we will write the intermediate CA data
-	intermediateCertOut, err := os.OpenFile(certFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	intermediateCertOut, err := os.OpenFile(certFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s for writing: %w", certFile, err)
 	}
 	defer handleFileClose(intermediateCertOut)
-	intermediateKeyOut, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	intermediateKeyOut, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return fmt.Errorf("failed to open file %s for writing: %w", keyFile, err)
 	}
@@ -291,7 +291,7 @@ func writeCombinedCerts(intermediateCertFile, rootCertFile, combinedCertFile str
 	defer handleFileClose(intermediateCertIn)
 
 	// Open the combined certificate file for writing
-	combinedCertOut, err := os.OpenFile(combinedCertFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	combinedCertOut, err := os.OpenFile(combinedCertFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		log.WithError(err).Fatalf("failed to open file %s for writing", combinedCertFile)
 	}
