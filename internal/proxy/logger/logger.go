@@ -369,6 +369,8 @@ func (logger *Logger) saveCacheToDb() {
 			// Append to the "http_request_body_json" table input rows
 			httpRespBodyJsonInputRows = append(httpRespBodyJsonInputRows, []interface{}{rr.Request.Url.Scheme, rr.Request.Url.Host, rr.Request.Url.Path, rr.Request.Method, rr.Response.BodyJson, rr.Response.StatusCode, rr.Request.Timestamp})
 		}
+
+		// CONTINUE: Add plaintext request and response body data, and save to the database under the APIHunter table.
 	}
 
 	// Handle transaction rollback with back-off and retry if unsuccessful.
