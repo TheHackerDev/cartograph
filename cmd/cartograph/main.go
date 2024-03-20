@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/TheHackerDev/cartograph/internal/apiHunter"
 	"net/http"
 	"os"
 
@@ -99,8 +100,11 @@ func main() {
 		}
 	}()
 
+	// Start API Hunter
+	pluginAPIHunter := apiHunter.NewAPIHunter()
+
 	// Start proxy
-	pluginProxy := proxy.NewProxy(cfg, pluginInjector, pluginLogger, pluginMapper, pluginAnalyzer)
+	pluginProxy := proxy.NewProxy(cfg, pluginInjector, pluginLogger, pluginMapper, pluginAnalyzer, pluginAPIHunter)
 	go func() {
 		if proxyErr := pluginProxy.Run(); proxyErr != nil {
 			fatalErrChan <- fmt.Errorf("problem with proxy server: %w", proxyErr)

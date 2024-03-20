@@ -78,6 +78,9 @@ type HttpRequest struct {
 
 	// Include the body of the request, if the content-type is application/json
 	BodyJson json.RawMessage
+
+	// Include the body of the request, if the content-type is text/plain
+	BodyText string
 }
 
 // deepCopy returns a deep copy of the HttpRequest struct, which can be safely modified without
@@ -115,6 +118,9 @@ type HttpResponse struct {
 
 	// Include the body of the response, only if content-type is application/json
 	BodyJson json.RawMessage
+
+	// Include the body of the response, only if content-type is text/plain
+	BodyText string
 }
 
 // deepCopy returns a deep copy of the HttpResponse struct, which can be safely modified without

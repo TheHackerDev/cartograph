@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/TheHackerDev/cartograph/internal/apiHunter"
 	"io"
 	"net"
 	"net/http"
@@ -48,12 +49,13 @@ import (
 )
 
 // NewProxy returns a new, properly instantiated Proxy object.
-func NewProxy(cfg *config.Config, pluginInjector *injector.Injector, pluginLogger *logger.Logger, pluginMapper *mapper.Mapper, pluginAnalyzer *analyzer.Analyzer) *Proxy {
+func NewProxy(cfg *config.Config, pluginInjector *injector.Injector, pluginLogger *logger.Logger, pluginMapper *mapper.Mapper, pluginAnalyzer *analyzer.Analyzer, pluginAPIHunter *apiHunter.APIHunter) *Proxy {
 	proxy := &Proxy{
-		pluginInjector: pluginInjector,
-		pluginLogger:   pluginLogger,
-		pluginMapper:   pluginMapper,
-		pluginAnalyzer: pluginAnalyzer,
+		pluginInjector:  pluginInjector,
+		pluginLogger:    pluginLogger,
+		pluginMapper:    pluginMapper,
+		pluginAnalyzer:  pluginAnalyzer,
+		pluginAPIHunter: pluginAPIHunter,
 	}
 
 	// Initialize a custom HTTP client
@@ -238,6 +240,9 @@ type Proxy struct {
 	// pluginAnalyzer stores the analyzer plugin's instance, including configuration data.
 	pluginAnalyzer *analyzer.Analyzer
 
+	// pluginAPIHunter stores the APIHunter plugin's instance, including configuration data.
+	pluginAPIHunter *apiHunter.APIHunter
+
 	// httpClient is used by the proxy's HTTP handler to forward traffic to remote servers.
 	httpClient *http.Client
 
@@ -331,21 +336,10 @@ func (proxy *Proxy) httpHandler() http.HandlerFunc {
 			},
 		}
 
-		// Look for JSON request body
-		// for _, val := range request.Header.Values("Content-Type") {
-		// 	if strings.EqualFold(val, "application/json") {
-		// 		// Save JSON request body
-		// 		body, bodyCopy, readErr := internalHttp.ReadBody(request.Body)
-		// 		request.Body = bodyCopy
-		// 		if readErr != nil {
-		// 			log.WithError(readErr).Error("unable to read body of HTTP request")
-		// 			break
-		// 		}
-		// 		var bodyJson json.RawMessage = body
-		// 		reqResp.Request.BodyJson = bodyJson
-		// 		break
-		// 	}
-		// }
+		// Save the API data from the request
+		if apiRequestDataSaveErr := proxy.pluginAPIHunter.AddAPIRequestData(&reqResp, request); apiRequestDataSaveErr != nil {
+			log.WithError(apiRequestDataSaveErr).Error("unable to save API request data")
+		}
 
 		// Prepare the referrer data
 		referrerData := &datatypes.ReferrerData{
@@ -403,78 +397,10 @@ func (proxy *Proxy) httpHandler() http.HandlerFunc {
 			Cookies:    resp.Cookies(),
 		}
 
-		// Look to save response body
-		// RespBodyLoop:
-		// 	for _, val := range resp.Header.Values("Content-Type") {
-		// 		switch {
-		// 		// Check for different JSON types
-		// 		case strings.EqualFold(val, "application/json") || strings.EqualFold(val, "application/vnd.linkedin.normalized+json+2.1"):
-		// 			// Save JSON request body
-		// 			var bodyJson json.RawMessage
-		// 			body, bodyCopy, readErr := internalHttp.ReadBody(resp.Body)
-		// 			resp.Body = bodyCopy
-		// 			if readErr != nil {
-		// 				log.WithError(readErr).Error("unable to read body of HTTP response")
-		//
-		// 				// Break from for loop
-		// 				break RespBodyLoop
-		// 			}
-		// 			// Odd edge case, but it's happened
-		// 			if len(body) == 0 {
-		// 				// Break from for loop
-		// 				break RespBodyLoop
-		// 			}
-		// 			// Decode and save body contents
-		// 			switch strings.ToLower(resp.Header.Get("content-encoding")) {
-		// 			case "gzip":
-		// 				// Decode and save the data
-		// 				var decodeErr error
-		// 				bodyJson, decodeErr = internalHttp.DecodeGzip(body)
-		// 				if decodeErr != nil {
-		// 					log.WithError(decodeErr).Error("unable to decode gzip-encoded body of HTTP response")
-		//
-		// 					// Break from for loop
-		// 					break RespBodyLoop
-		// 				}
-		// 				reqResp.Response.BodyJson = bodyJson
-		// 			case "br":
-		// 				// Decode and save the data
-		// 				var decodeErr error
-		// 				bodyJson, decodeErr = internalHttp.DecodeBrotli(body)
-		// 				if decodeErr != nil {
-		// 					log.WithError(decodeErr).Error("unable to decode brotli-encoded body of HTTP response")
-		//
-		// 					// Break from for loop
-		// 					break RespBodyLoop
-		// 				}
-		// 				reqResp.Response.BodyJson = bodyJson
-		// 			case "deflate":
-		// 				// Decode and save the data
-		// 				var decodeErr error
-		// 				bodyJson, decodeErr = internalHttp.DecodeDeflate(body)
-		// 				if decodeErr != nil {
-		// 					log.WithError(decodeErr).Error("unable to decode deflate-encoded body of HTTP response")
-		//
-		// 					// Break from for loop
-		// 					break RespBodyLoop
-		// 				}
-		// 				reqResp.Response.BodyJson = bodyJson
-		// 			default:
-		// 				if encodingType := resp.Header.Get("content-encoding"); len(encodingType) > 0 {
-		// 					// Unsupported content-encoding type
-		// 					log.Errorf("content-encoding type not supported in HTTP response: %s", encodingType)
-		//
-		// 					// Break from for loop
-		// 					break RespBodyLoop
-		// 				}
-		// 				// Body present, but not encoded
-		// 				reqResp.Response.BodyJson = body
-		//
-		// 				// Break from for loop
-		// 				break RespBodyLoop
-		// 			}
-		// 		}
-		// 	}
+		// Save the API data from the response
+		if apiResponseDataSaveErr := proxy.pluginAPIHunter.AddAPIResponseData(&reqResp, resp); apiResponseDataSaveErr != nil {
+			log.WithError(apiResponseDataSaveErr).Error("unable to save API response data")
+		}
 
 		// Send the response data to the logger
 		proxy.pluginLogger.LogHttpData(&reqResp)
