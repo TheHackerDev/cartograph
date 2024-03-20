@@ -113,7 +113,8 @@ func (logger *Logger) Run() error {
 				continue
 			}
 
-			// Create a deep copy of the data, so we can safely modify it
+			// Create a deep copy of the data, so we can safely modify it, as this same data is also
+			// referenced elsewhere.
 			data := httpData.DeepCopy()
 
 			// Remove unwanted data from the HTTP data

@@ -104,7 +104,8 @@ func (a *Analyzer) Run() error {
 	for {
 		select {
 		case httpReqResp := <-a.corpusDataInput:
-			// Make a deep copy of the http request/response data, so we can safely modify it
+			// Make a deep copy of the http request/response data, so we can safely modify it,
+			// as this same data is referenced elsewhere.
 			data := httpReqResp.DeepCopy()
 
 			// Convert to proper corpus data type
