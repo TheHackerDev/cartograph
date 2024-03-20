@@ -97,7 +97,6 @@ func (logger *Logger) Run() error {
 	// Create a ticker for flushing out the local caches.
 	// Use a random interval to prevent bottlenecks in the database by competing services.
 	// The random time is anywhere between 40 and 120 seconds.
-	rand.Seed(time.Now().UnixNano())
 	cacheFlushTicker := time.NewTicker(time.Second * time.Duration(rand.Intn(80)+40))
 
 	// Handle HTTP data sent to the logger, as well as any fatal errors received from its internal goroutines
