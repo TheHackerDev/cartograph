@@ -76,37 +76,24 @@ create table if not exists config_logger
     ignored uuid[]  default ARRAY []::uuid[] not null
 );
 
-create table if not exists http_request_body_json
+create table if not exists data_api_hunter
 (
-    url_scheme text                     not null,
-    url_host   text                     not null,
-    url_path   text                     not null,
-    req_method text                     not null,
-    req_body   jsonb                    not null,
-    resp_code  integer default 0        not null,
-    timestamp  timestamp with time zone not null
+    url_scheme      text                     not null,
+    url_host        text                     not null,
+    url_path        text                     not null,
+    req_method      text                     not null,
+    req_body_json   jsonb,
+    req_body_plain  text,
+    resp_body_json  jsonb,
+    resp_body_plain jsonb,
+    resp_code       integer default 0        not null,
+    timestamp       timestamp with time zone not null
 );
 
-comment on table http_request_body_json is 'JSON content observed in HTTP requests.';
+comment on table data_api_hunter is 'API data observed in HTTP requests and responses.';
 
-create index if not exists http_request_body_json_index
-    on http_request_body_json (url_scheme, url_host, url_path, req_method, resp_code);
-
-create table if not exists http_response_body_json
-(
-    url_scheme text                     not null,
-    url_host   text                     not null,
-    url_path   text                     not null,
-    req_method text                     not null,
-    resp_body  jsonb                    not null,
-    resp_code  integer default 0        not null,
-    timestamp  timestamp with time zone not null
-);
-
-comment on table http_response_body_json is 'JSON content observed in HTTP responses.';
-
-create index if not exists http_response_body_json_index
-    on http_response_body_json (url_scheme, url_host, url_path, req_method, resp_code);
+create index if not exists data_api_hunter_index
+    on data_api_hunter (url_scheme, url_host, url_path, req_method, resp_code);
 
 create table if not exists data_injector
 (

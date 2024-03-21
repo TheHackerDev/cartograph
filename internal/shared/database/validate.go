@@ -113,6 +113,11 @@ func ValidateDB(dbConn *pgx.Conn) error {
 		return fmt.Errorf("unable to create mapper data table in database: %w", err)
 	}
 
+	// API Hunter data table
+	if err := createTableDataApiHunter(dbConn); err != nil {
+		return fmt.Errorf("unable to create http json request body table in database: %w", err)
+	}
+
 	// targets table
 	if err := createTableTargets(dbConn); err != nil {
 		return fmt.Errorf("unable to create targets table in database: %w", err)
@@ -121,16 +126,6 @@ func ValidateDB(dbConn *pgx.Conn) error {
 	// injector script URLs table
 	if err := createTableInjectorScriptURLs(dbConn); err != nil {
 		return fmt.Errorf("unable to create injector script URLs table in database: %w", err)
-	}
-
-	// HTTP request body (JSON) table
-	if err := createTableReqBodyJson(dbConn); err != nil {
-		return fmt.Errorf("unable to create http json request body table in database: %w", err)
-	}
-
-	// HTTP response body (JSON) table
-	if err := createTableRespBodyJson(dbConn); err != nil {
-		return fmt.Errorf("unable to create http json response body table in database: %w", err)
 	}
 
 	// Corpus data - http header keys table
@@ -865,11 +860,11 @@ func createTableInjectorScriptURLs(dbConn *pgx.Conn) error {
 	return nil
 }
 
-// createTableReqBodyJson first checks whether the table exists, and
+// createTableDataApiHunter first checks whether the table exists, and
 // creates the table if it does not.
 // Any errors returned should be considered fatal.
-func createTableReqBodyJson(dbConn *pgx.Conn) error {
-	tableName := "http_request_body_json"
+func createTableDataApiHunter(dbConn *pgx.Conn) error {
+	tableName := "data_api_hunter"
 
 	// Check if table exists
 	exists, existsErr := tableExists(dbConn, tableName)
@@ -878,19 +873,24 @@ func createTableReqBodyJson(dbConn *pgx.Conn) error {
 	}
 	if !exists {
 		// Create table
-		sqlTableCreate := `create table if not exists http_request_body_json
+		sqlTableCreate := `create table if not exists data_api_hunter
 			(
-				url_scheme text                     not null,
-				url_host   text                     not null,
-				url_path   text                     not null,
-				req_method text                     not null,
-				req_body   jsonb                    not null,
-				resp_code  integer default 0        not null,
-				timestamp  timestamp with time zone not null
+				url_scheme      text                     not null,
+				url_host        text                     not null,
+				url_path        text                     not null,
+				req_method      text                     not null,
+				req_body_json   jsonb,
+				req_body_plain  text,
+				resp_body_json  jsonb,
+				resp_body_plain jsonb,
+				resp_code       integer default 0        not null,
+				timestamp       timestamp with time zone not null
 			);
 			
-			create index if not exists http_request_body_json_index
-				on http_request_body_json (url_scheme, url_host, url_path, req_method, resp_code);`
+			comment on table data_api_hunter is 'API data observed in HTTP requests and responses.';
+			
+			create index if not exists data_api_hunter_index
+				on data_api_hunter (url_scheme, url_host, url_path, req_method, resp_code);`
 		if _, err := dbConn.Exec(context.Background(), sqlTableCreate); err != nil {
 			return err
 		}
@@ -898,51 +898,7 @@ func createTableReqBodyJson(dbConn *pgx.Conn) error {
 	}
 
 	// Validate the schema
-	sqlTableSelect := `SELECT url_scheme, url_scheme, url_host, url_path, req_method, req_body, resp_code, timestamp FROM http_request_body_json LIMIT 1;`
-	rows, queryErr := dbConn.Query(context.Background(), sqlTableSelect)
-	if queryErr != nil {
-		return fmt.Errorf("%s table is misconfigured; please backup your data from the database and remove the table: %w", tableName, queryErr)
-	}
-	// Rows must be called and closed for the connection to be used again.
-	rows.Close()
-
-	return nil
-}
-
-// createTableRespBodyJson first checks whether the table exists, and
-// creates the table if it does not.
-// Any errors returned should be considered fatal.
-func createTableRespBodyJson(dbConn *pgx.Conn) error {
-	tableName := "http_response_body_json"
-
-	// Check if table exists
-	exists, existsErr := tableExists(dbConn, tableName)
-	if existsErr != nil {
-		return existsErr
-	}
-	if !exists {
-		// Create table
-		sqlTableCreate := `create table if not exists http_response_body_json
-			(
-				url_scheme text                     not null,
-				url_host   text                     not null,
-				url_path   text                     not null,
-				req_method text                     not null,
-				resp_body  jsonb                    not null,
-				resp_code  integer default 0        not null,
-				timestamp  timestamp with time zone not null
-			);
-			
-			create index if not exists http_response_body_json_index
-				on http_response_body_json (url_scheme, url_host, url_path, req_method, resp_code);`
-		if _, err := dbConn.Exec(context.Background(), sqlTableCreate); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// Validate the schema
-	sqlTableSelect := `SELECT url_scheme, url_host, url_path, req_method, resp_body, resp_code, timestamp FROM http_response_body_json LIMIT 1;`
+	sqlTableSelect := `SELECT url_scheme, url_scheme, url_host, url_path, req_method, req_body_json, req_body_plain, resp_body_json, resp_body_plain, resp_code, timestamp FROM http_request_body_json LIMIT 1;`
 	rows, queryErr := dbConn.Query(context.Background(), sqlTableSelect)
 	if queryErr != nil {
 		return fmt.Errorf("%s table is misconfigured; please backup your data from the database and remove the table: %w", tableName, queryErr)
