@@ -186,9 +186,7 @@ func (logger *Logger) saveCacheToDb() {
 
 	// Slices containing all the data we're going to copy into the database tables
 	var inventoryInputRows [][]interface{}
-	var httpReqBodyJsonInputRows [][]interface{}
-	var httpRespBodyJsonInputRows [][]interface{}
-	var httpRespBodyHtmlInputRows [][]interface{}
+	var apiHunterInputRows [][]interface{}
 
 	// Lock the HTTP data cache
 	logger.mu.RLock()
@@ -358,87 +356,85 @@ func (logger *Logger) saveCacheToDb() {
 		// Append the values to the "data_logger" table input rows
 		inventoryInputRows = append(inventoryInputRows, []interface{}{rr.Request.Url.Scheme, rr.Request.Url.Host, rr.Request.Url.Path, rr.Request.Timestamp, rr.Request.Method, paramKeys, headerReqKeys, headerRespKeys, cookieKeys, rr.Response.StatusCode, paramKeyValues, headerReqKeyValues, headerRespKeyValues, cookieKeyValues, rr.Request.Timestamp})
 
-		// Check for JSON request data
-		if len(rr.Request.BodyJson) > 0 {
-			// Append to the "http_request_body_json" table input rows
-			httpReqBodyJsonInputRows = append(httpReqBodyJsonInputRows, []interface{}{rr.Request.Url.Scheme, rr.Request.Url.Host, rr.Request.Url.Path, rr.Request.Method, rr.Request.BodyJson, rr.Response.StatusCode, rr.Request.Timestamp})
-		}
-
-		// Check for JSON response data
-		if len(rr.Response.BodyJson) > 0 {
-			// Append to the "http_request_body_json" table input rows
-			httpRespBodyJsonInputRows = append(httpRespBodyJsonInputRows, []interface{}{rr.Request.Url.Scheme, rr.Request.Url.Host, rr.Request.Url.Path, rr.Request.Method, rr.Response.BodyJson, rr.Response.StatusCode, rr.Request.Timestamp})
-		}
-
-		// CONTINUE: Add plaintext request and response body data, and save to the database under the APIHunter table.
+		// Add to the API Hunter input rows slice
+		apiHunterInputRows = append(apiHunterInputRows, []interface{}{rr.Request.Url.Scheme, rr.Request.Url.Host, rr.Request.Url.Path, rr.Request.Method, rr.Response.StatusCode, rr.Request.Timestamp, rr.Request.BodyJson, rr.Response.BodyJson, rr.Request.BodyText, rr.Response.BodyText})
 	}
 
-	// Handle transaction rollback with back-off and retry if unsuccessful.
-	txOk := false
-	retryCount := 0
-	maxRetries := 4
+	// Perform the logger and API Hunter database transactions in goroutines
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	// BUG: The first row of the data_logger database is full of empty data.
+	// CONTINUE: Confirm that these work (ran out of time to test).
 
-	for ; retryCount < maxRetries && !txOk; retryCount++ {
-		// Start the transaction
-		tx, txErr := logger.dbConnPool.Begin(ctx)
-		if txErr != nil {
-			// This should never happen, unless the connection is broken or there is a context timeout.
-			// Either way, transactions probably won't work after this anyway.
-			log.WithError(txErr).Error("unable to start database transaction")
-		}
+	go func() {
+		defer wg.Done()
 
-		// Create a temporary table to copy the data into.
-		// We will create a random name for the table, to prevent conflict if this function runs concurrently.
-		// Yes, we will concatenate it into the SQL string, but given that there is no direct user input into this
-		// random name, we do not have to worry about SQL injection.
-		tmpTableName := fmt.Sprintf("tmp_%d_%d", time.Now().UnixNano(), rand.Intn(9999))
-		sqlQueryTmpTableCreate := fmt.Sprintf(`CREATE TEMPORARY TABLE %s (url_scheme TEXT DEFAULT ''::TEXT NOT NULL, url_host TEXT NOT NULL, url_path TEXT DEFAULT ''::TEXT NOT NULL, date_found TIMESTAMP WITH TIME ZONE NOT NULL, req_method TEXT DEFAULT ''::TEXT NOT NULL, param_keys TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_keys_req TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_keys_resp TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, cookie_keys TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, resp_code INT DEFAULT 0 NOT NULL, param_key_vals TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_key_vals_req TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_key_vals_resp TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, cookie_key_vals TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, last_seen timestamp with time zone not null) ON COMMIT DROP;`, tmpTableName)
-		if _, tmpTableCreateErr := tx.Exec(ctx, sqlQueryTmpTableCreate); tmpTableCreateErr != nil {
-			log.WithError(tmpTableCreateErr).Error("unable to create temporary database table")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+		// Handle transaction rollback with back-off and retry if unsuccessful.
+		txOk := false
+		retryCount := 0
+		maxRetries := 4
+
+		// BUG: The first row of the data_logger database is full of empty data.
+
+		for ; retryCount < maxRetries && !txOk; retryCount++ {
+			// Start the transaction
+			tx, txErr := logger.dbConnPool.Begin(ctx)
+			if txErr != nil {
+				// This should never happen, unless the connection is broken or there is a context timeout.
+				// Either way, transactions probably won't work after this anyway.
+				log.WithError(txErr).Error("unable to start database transaction")
 			}
-			continue
-		}
 
-		// Copy the data into the temporary table using postgresql's COPY FROM semantics
-		copyCount, copyErr := tx.CopyFrom(ctx, pgx.Identifier{tmpTableName}, []string{"url_scheme", "url_host", "url_path", "date_found", "req_method", "param_keys", "header_keys_req", "header_keys_resp", "cookie_keys", "resp_code", "param_key_vals", "header_key_vals_req", "header_key_vals_resp", "cookie_key_vals", "last_seen"}, pgx.CopyFromRows(inventoryInputRows))
-		if copyErr != nil {
-			log.WithError(copyErr).Error("unable to copy data into temporary database table")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+			// Create a temporary table to copy the data into.
+			// We will create a random name for the table, to prevent conflict if this function runs concurrently.
+			// Yes, we will concatenate it into the SQL string, but given that there is no direct user input into this
+			// random name, we do not have to worry about SQL injection.
+			tmpTableName := fmt.Sprintf("tmp_%d_%d", time.Now().UnixNano(), rand.Intn(9999))
+			sqlQueryTmpTableCreate := fmt.Sprintf(`CREATE TEMPORARY TABLE %s (url_scheme TEXT DEFAULT ''::TEXT NOT NULL, url_host TEXT NOT NULL, url_path TEXT DEFAULT ''::TEXT NOT NULL, date_found TIMESTAMP WITH TIME ZONE NOT NULL, req_method TEXT DEFAULT ''::TEXT NOT NULL, param_keys TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_keys_req TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_keys_resp TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, cookie_keys TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, resp_code INT DEFAULT 0 NOT NULL, param_key_vals TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_key_vals_req TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, header_key_vals_resp TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, cookie_key_vals TEXT[] DEFAULT '{}'::TEXT[] NOT NULL, last_seen timestamp with time zone not null) ON COMMIT DROP;`, tmpTableName)
+			if _, tmpTableCreateErr := tx.Exec(ctx, sqlQueryTmpTableCreate); tmpTableCreateErr != nil {
+				log.WithError(tmpTableCreateErr).Error("unable to create temporary database table")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
 			}
-			continue
-		}
-		if int(copyCount) != len(inventoryInputRows) {
-			log.Errorf("expected to copy %d rows, but only copied %d rows into temporary database table", len(inventoryInputRows), copyCount)
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
-			}
-			continue
-		}
 
-		// Copy the data from the temporary table into the permanent table
-		_, insertErr := tx.Exec(ctx, fmt.Sprintf("INSERT INTO data_logger (url_scheme, url_host, url_path, date_found, req_method, param_keys, header_keys_req, header_keys_resp, cookie_keys, resp_code, param_key_vals, header_key_vals_req, header_key_vals_resp, cookie_key_vals, last_seen) SELECT url_scheme, url_host, url_path, date_found, req_method, param_keys, header_keys_req, header_keys_resp, cookie_keys, resp_code, param_key_vals, header_key_vals_req, header_key_vals_resp, cookie_key_vals, last_seen FROM %s ON CONFLICT DO NOTHING;", tmpTableName))
-		if insertErr != nil {
-			log.WithError(insertErr).Error("unable to insert temporary table data into database")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+			// Copy the data into the temporary table using postgresql's COPY FROM semantics
+			copyCount, copyErr := tx.CopyFrom(ctx, pgx.Identifier{tmpTableName}, []string{"url_scheme", "url_host", "url_path", "date_found", "req_method", "param_keys", "header_keys_req", "header_keys_resp", "cookie_keys", "resp_code", "param_key_vals", "header_key_vals_req", "header_key_vals_resp", "cookie_key_vals", "last_seen"}, pgx.CopyFromRows(inventoryInputRows))
+			if copyErr != nil {
+				log.WithError(copyErr).Error("unable to copy data into temporary database table")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
 			}
-			continue
-		}
+			if int(copyCount) != len(inventoryInputRows) {
+				log.Errorf("expected to copy %d rows, but only copied %d rows into temporary database table", len(inventoryInputRows), copyCount)
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
+			}
 
-		// Append the new values from the temporary table into the arrays on the existing
-		// table.
-		// To do this, we update all rows where the url scheme, host, path, and
-		// request type match between the inventory and temporary table,
-		// concatenating the arrays together, un-nesting them, then joining them
-		// back together with the "distinct" select clause in the array_agg
-		// function. This has the result of updating all arrays to only
-		// include distinct elements.
-		_, updateArraysErr := tx.Exec(ctx, fmt.Sprintf(`UPDATE data_logger AS inv
+			// Copy the data from the temporary table into the permanent table
+			_, insertErr := tx.Exec(ctx, fmt.Sprintf("INSERT INTO data_logger (url_scheme, url_host, url_path, date_found, req_method, param_keys, header_keys_req, header_keys_resp, cookie_keys, resp_code, param_key_vals, header_key_vals_req, header_key_vals_resp, cookie_key_vals, last_seen) SELECT url_scheme, url_host, url_path, date_found, req_method, param_keys, header_keys_req, header_keys_resp, cookie_keys, resp_code, param_key_vals, header_key_vals_req, header_key_vals_resp, cookie_key_vals, last_seen FROM %s ON CONFLICT DO NOTHING;", tmpTableName))
+			if insertErr != nil {
+				log.WithError(insertErr).Error("unable to insert temporary table data into database")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
+			}
+
+			// Append the new values from the temporary table into the arrays on the existing
+			// table.
+			// To do this, we update all rows where the url scheme, host, path, and
+			// request type match between the inventory and temporary table,
+			// concatenating the arrays together, un-nesting them, then joining them
+			// back together with the "distinct" select clause in the array_agg
+			// function. This has the result of updating all arrays to only
+			// include distinct elements.
+			_, updateArraysErr := tx.Exec(ctx, fmt.Sprintf(`UPDATE data_logger AS inv
 		SET param_keys = (
 				SELECT array_agg(distinct vals) FROM unnest(inv.param_keys || tmp.param_keys) vals
 			),
@@ -465,92 +461,130 @@ func (logger *Logger) saveCacheToDb() {
 			)
 		FROM %s AS tmp
 		WHERE tmp.url_scheme = inv.url_scheme AND tmp.url_host = inv.url_host AND tmp.url_path = inv.url_path AND tmp.req_method = inv.req_method AND tmp.resp_code = inv.resp_code;`, tmpTableName))
-		if updateArraysErr != nil {
-			log.WithError(updateArraysErr).Error("unable to append data from temporary table into inventory arrays")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
-			}
-			continue
-		}
-
-		// Update the "last seen" time for all entries in the database
-		_, updateTimesErr := tx.Exec(ctx, fmt.Sprintf(`update data_logger as i set last_seen = (select tmp.last_seen from %s as tmp where i.url_scheme = tmp.url_scheme and i.url_host = tmp.url_host and i.url_path = tmp.url_path and i.req_method = tmp.req_method and i.resp_code = tmp.resp_code order by last_seen limit 1) from %s as tmp where i.url_scheme = tmp.url_scheme and i.url_host = tmp.url_host and i.url_path = tmp.url_path and i.req_method = tmp.req_method and i.resp_code = tmp.resp_code;`, tmpTableName, tmpTableName))
-		if updateTimesErr != nil {
-			log.WithError(updateTimesErr).Error("unable to update 'last_seen' time in inventory table from temporary table")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
-			}
-			continue
-		}
-
-		// Add JSON request data
-		if len(httpReqBodyJsonInputRows) > 0 {
-			reqJsonCopyCount, reqJsonCopyErr := tx.CopyFrom(ctx, pgx.Identifier{"http_request_body_json"}, []string{"url_scheme", "url_host", "url_path", "req_method", "req_body", "resp_code", "timestamp"}, pgx.CopyFromRows(httpReqBodyJsonInputRows))
-			if reqJsonCopyErr != nil {
-				log.WithError(reqJsonCopyErr).Error("unable to copy JSON request body data into database")
+			if updateArraysErr != nil {
+				log.WithError(updateArraysErr).Error("unable to append data from temporary table into inventory arrays")
 				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
 					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
 				}
 				continue
 			}
-			if int(reqJsonCopyCount) != len(httpReqBodyJsonInputRows) {
-				log.Errorf("expected to copy %d rows, but only copied %d rows into JSON request body table", len(httpReqBodyJsonInputRows), reqJsonCopyCount)
-				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
-				}
-				continue
-			}
-		}
 
-		// Add JSON response data
-		if len(httpRespBodyJsonInputRows) > 0 {
-			respJsonCopyCount, respJsonCopyErr := tx.CopyFrom(ctx, pgx.Identifier{"http_response_body_json"}, []string{"url_scheme", "url_host", "url_path", "req_method", "resp_body", "resp_code", "timestamp"}, pgx.CopyFromRows(httpRespBodyJsonInputRows))
-			if respJsonCopyErr != nil {
-				log.WithError(respJsonCopyErr).Error("unable to copy JSON response body data into database")
+			// Update the "last seen" time for all entries in the database
+			_, updateTimesErr := tx.Exec(ctx, fmt.Sprintf(`update data_logger as i set last_seen = (select tmp.last_seen from %s as tmp where i.url_scheme = tmp.url_scheme and i.url_host = tmp.url_host and i.url_path = tmp.url_path and i.req_method = tmp.req_method and i.resp_code = tmp.resp_code order by last_seen limit 1) from %s as tmp where i.url_scheme = tmp.url_scheme and i.url_host = tmp.url_host and i.url_path = tmp.url_path and i.req_method = tmp.req_method and i.resp_code = tmp.resp_code;`, tmpTableName, tmpTableName))
+			if updateTimesErr != nil {
+				log.WithError(updateTimesErr).Error("unable to update 'last_seen' time in inventory table from temporary table")
 				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
 					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
 				}
 				continue
 			}
-			if int(respJsonCopyCount) != len(httpRespBodyJsonInputRows) {
-				log.Errorf("expected to copy %d rows, but only copied %d rows into JSON response body table", len(httpRespBodyJsonInputRows), respJsonCopyCount)
-				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
-				}
-				continue
-			}
-		}
 
-		// Add HTML response data
-		if len(httpRespBodyHtmlInputRows) > 0 {
-			respHtmlCopyCount, respHtmlCopyErr := tx.CopyFrom(ctx, pgx.Identifier{"http_response_body_html"}, []string{"url_scheme", "url_host", "url_path", "req_method", "resp_body", "resp_code", "timestamp"}, pgx.CopyFromRows(httpRespBodyHtmlInputRows))
-			if respHtmlCopyErr != nil {
-				log.WithError(respHtmlCopyErr).Error("unable to copy HTML response body data into database")
+			// Commit the transaction
+			if commitErr := tx.Commit(ctx); commitErr != nil {
+				log.WithError(commitErr).Error("unable to commit transaction to database")
 				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
 					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
 				}
 				continue
 			}
-			if int(respHtmlCopyCount) != len(httpRespBodyHtmlInputRows) {
-				log.Errorf("expected to copy %d rows, but only copied %d rows into HTML response body table", len(httpRespBodyHtmlInputRows), respHtmlCopyCount)
+
+			txOk = true
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		txOk := false
+		retryCount := 0
+		maxRetries := 4
+
+		for ; retryCount < maxRetries && !txOk; retryCount++ {
+			// Start the transaction
+			tx, txErr := logger.dbConnPool.Begin(ctx)
+			if txErr != nil {
+				log.WithError(txErr).Error("unable to start database transaction")
+				continue
+			}
+
+			tmpTableName := fmt.Sprintf("tmp_api_hunter_%d_%d", time.Now().UnixNano(), rand.Intn(9999))
+			sqlQueryTmpTableCreate := fmt.Sprintf(`
+            CREATE TEMPORARY TABLE %s (
+                url_scheme TEXT NOT NULL,
+                url_host TEXT NOT NULL,
+                url_path TEXT NOT NULL,
+                req_method TEXT NOT NULL,
+                req_body_json JSONB,
+                req_body_plain TEXT,
+                resp_body_json JSONB,
+                resp_body_plain JSONB,
+                resp_code INT DEFAULT 0 NOT NULL,
+                timestamp TIMESTAMP WITH TIME ZONE NOT NULL
+            ) ON COMMIT DROP;
+        `, tmpTableName)
+
+			if _, tmpTableCreateErr := tx.Exec(ctx, sqlQueryTmpTableCreate); tmpTableCreateErr != nil {
+				log.WithError(tmpTableCreateErr).Error("unable to create temporary database table")
 				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
 					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
 				}
 				continue
 			}
-		}
 
-		// Commit the transaction
-		if commitErr := tx.Commit(ctx); commitErr != nil {
-			log.WithError(commitErr).Error("unable to commit transaction to database")
-			if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
-				log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+			// Copy the data into the temporary table
+			copyCount, copyErr := tx.CopyFrom(
+				ctx,
+				pgx.Identifier{tmpTableName},
+				[]string{"url_scheme", "url_host", "url_path", "req_method", "req_body_json", "req_body_plain", "resp_body_json", "resp_body_plain", "resp_code", "timestamp"},
+				pgx.CopyFromRows(apiHunterInputRows),
+			)
+
+			if copyErr != nil {
+				log.WithError(copyErr).Error("unable to copy data into temporary database table")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
 			}
-			continue
-		}
 
-		txOk = true
-	}
+			if int(copyCount) != len(apiHunterInputRows) {
+				log.Errorf("expected to copy %d rows, but only copied %d rows into temporary database table", len(apiHunterInputRows), copyCount)
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
+			}
+
+			// Copy the data from the temporary table into the actual data_api_hunter table
+			_, insertErr := tx.Exec(ctx, fmt.Sprintf(`
+            INSERT INTO data_api_hunter (url_scheme, url_host, url_path, req_method, req_body_json, req_body_plain, resp_body_json, resp_body_plain, resp_code, timestamp)
+            SELECT url_scheme, url_host, url_path, req_method, req_body_json, req_body_plain, resp_body_json, resp_body_plain, resp_code, timestamp
+            FROM %s
+            ON CONFLICT DO NOTHING;
+        `, tmpTableName))
+
+			if insertErr != nil {
+				log.WithError(insertErr).Error("unable to insert temporary table data into data_api_hunter database")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
+			}
+
+			if commitErr := tx.Commit(ctx); commitErr != nil {
+				log.WithError(commitErr).Error("unable to commit transaction to database")
+				if rollbackErr := rollbackAndBackoff(tx); rollbackErr != nil {
+					log.WithError(rollbackErr).Error("problem with transaction rollback and backoff")
+				}
+				continue
+			}
+
+			txOk = true
+		}
+	}()
+
+	wg.Wait() // This ensures that both goroutines have completed
 
 	return
 }
