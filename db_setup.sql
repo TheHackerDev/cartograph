@@ -85,7 +85,7 @@ create table if not exists data_api_hunter
     req_body_json   jsonb,
     req_body_plain  text,
     resp_body_json  jsonb,
-    resp_body_plain jsonb,
+    resp_body_plain text,
     resp_code       integer default 0        not null,
     timestamp       timestamp with time zone not null
 );

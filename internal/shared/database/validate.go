@@ -115,7 +115,7 @@ func ValidateDB(dbConn *pgx.Conn) error {
 
 	// API Hunter data table
 	if err := createTableDataApiHunter(dbConn); err != nil {
-		return fmt.Errorf("unable to create http json request body table in database: %w", err)
+		return fmt.Errorf("unable to create API hunter table in database: %w", err)
 	}
 
 	// targets table
@@ -882,7 +882,7 @@ func createTableDataApiHunter(dbConn *pgx.Conn) error {
 				req_body_json   jsonb,
 				req_body_plain  text,
 				resp_body_json  jsonb,
-				resp_body_plain jsonb,
+				resp_body_plain text,
 				resp_code       integer default 0        not null,
 				timestamp       timestamp with time zone not null
 			);
@@ -898,7 +898,7 @@ func createTableDataApiHunter(dbConn *pgx.Conn) error {
 	}
 
 	// Validate the schema
-	sqlTableSelect := `SELECT url_scheme, url_scheme, url_host, url_path, req_method, req_body_json, req_body_plain, resp_body_json, resp_body_plain, resp_code, timestamp FROM http_request_body_json LIMIT 1;`
+	sqlTableSelect := `SELECT url_scheme, url_scheme, url_host, url_path, req_method, req_body_json, req_body_plain, resp_body_json, resp_body_plain, resp_code, timestamp FROM data_api_hunter LIMIT 1;`
 	rows, queryErr := dbConn.Query(context.Background(), sqlTableSelect)
 	if queryErr != nil {
 		return fmt.Errorf("%s table is misconfigured; please backup your data from the database and remove the table: %w", tableName, queryErr)
