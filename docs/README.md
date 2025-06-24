@@ -142,6 +142,16 @@ The server will return a JSON object listing all existing target rules and their
 This command will return details on all target rules set up in Cartograph, making it easy to manage and review the hosts
 you're currently targeting or ignoring.
 
+## Development
+
+For developers who want to contribute to Cartograph or debug the application, see the [Development Guide](development.md) which covers:
+
+- Setting up the debug build with Docker
+- Connecting VS Code, Cursor, or Windsurf for debugging
+- Development workflow and testing
+- Contributing guidelines
+- Advanced development topics
+
 # Roadmap
 
 Cartograph is a work in progress, with many exciting features and capabilities planned for future releases. Here's a
