@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/andybalholm/brotli v1.0.4
 	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.0
 	github.com/jackc/pgtype v1.14.0
 	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
