@@ -5,9 +5,9 @@
 Cartograph is an advanced proxy that maps HTTP networks. It is designed to aid in cybersecurity assessments and research
 through high performance data collection and visualization of web ecosystems.
 
-## Architecture Overview
+## System Overview
 
-The following diagram illustrates Cartograph's modular architecture and data flow:
+The following diagram illustrates Cartograph's logical system architecture and data flow:
 
 ```mermaid
 flowchart TD
