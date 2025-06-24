@@ -13,10 +13,26 @@
 <script>
     window.$docsify = {
         name: 'Cartograph',
-        repo: 'https://github.com/TheHackerDev/cartograph'
+        repo: 'https://github.com/TheHackerDev/cartograph',
+        mermaid: {
+            theme: 'default'
+        }
     }
 </script>
 <!-- Docsify v4 -->
 <script src="//cdn.jsdelivr.net/npm/docsify@4"></script>
+<!-- Mermaid support -->
+<script src="//cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="//cdn.jsdelivr.net/npm/docsify-mermaid@2/dist/docsify-mermaid.js"></script>
+<script>
+    mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true
+        }
+    });
+</script>
 </body>
 </html>
