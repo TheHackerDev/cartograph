@@ -1,5 +1,5 @@
 # Compile the CA certificates for mitm in the proxy
-FROM golang:1.22-bookworm AS ca-certs
+FROM golang:1.24-bookworm AS ca-certs
 
 # Set the working directory
 WORKDIR /go/src/github.com/TheHackerDev/cartograph
@@ -35,7 +35,7 @@ RUN go run ./main.go -root-cert-in="/go/src/github.com/TheHackerDev/cartograph/r
 
 # Use buster, so we can have GCC built-in, which is required for the use
 # of the race flag in go build.
-FROM golang:1.22-bookworm
+FROM golang:1.24-bookworm
 
 # Debug HTTP2 protocol
 #ENV GODEBUG="http2debug=2"

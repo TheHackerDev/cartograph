@@ -1,5 +1,5 @@
 # Compile the CA certificates for mitm in the proxy
-FROM golang:1.22-bookworm AS ca-certs
+FROM golang:1.24-bookworm AS ca-certs
 
 # Set the working directory
 WORKDIR /go/src/github.com/TheHackerDev/cartograph
@@ -33,7 +33,7 @@ RUN go run ./main.go -root-cert-in="/go/src/github.com/TheHackerDev/cartograph/r
                               -intermediate-cert="/certs/intermediate-cert-ecdsa.pem" \
                               -intermediate-key="/certs/intermediate-key-ecdsa.pem"
 
-FROM golang:1.22-bookworm AS proxy-build
+FROM golang:1.24-bookworm AS proxy-build
 
 # Debug HTTP2 protocol
 #ENV GODEBUG="http2debug=2"

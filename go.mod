@@ -1,7 +1,6 @@
 module github.com/TheHackerDev/cartograph
 
-go 1.22
-toolchain go1.24.1
+go 1.24.4
 
 require (
 	github.com/andybalholm/brotli v1.0.4
