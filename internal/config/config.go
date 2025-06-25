@@ -262,9 +262,6 @@ func (c *Config) dbMonitor(ctx context.Context) error {
 			return fmt.Errorf("unable to parse database notification target payload: %s", notify.Payload)
 		}
 
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
 		// Update the target or ignored map
 		switch changeType {
 		case "UPDATE":
@@ -280,21 +277,21 @@ func (c *Config) dbMonitor(ctx context.Context) error {
 				return fmt.Errorf("unable to convert target to TargetIgnoreSimple: %w", convertErr)
 			}
 
-			// Update the target or ignored map
+			// Lock only for the map update
+			c.mu.Lock()
 			if target.Ignore {
 				c.ignored[targetId] = targetIgnore
 			} else {
 				c.targets[targetId] = targetIgnore
 			}
+			c.mu.Unlock()
 		case "DELETE":
-			// Delete the target or ignored map
-			if _, ok := c.ignored[targetId]; ok {
-				delete(c.ignored, targetId)
-			} else if _, ok := c.targets[targetId]; ok {
-				delete(c.targets, targetId)
-			} else {
-				return fmt.Errorf("unable to find target with ID '%s' in targets or ignored maps", targetId)
-			}
+			// Lock only for the map update
+			c.mu.Lock()
+			// Delete the target from the configuration
+			delete(c.targets, targetId)
+			delete(c.ignored, targetId)
+			c.mu.Unlock()
 		}
 	}
 }
