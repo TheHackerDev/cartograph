@@ -1989,15 +1989,26 @@ func createTriggers(dbConn *pgx.Conn) error {
 		$$
 		DECLARE
 			operation TEXT;
+			script_id UUID;
+			script_url TEXT;
 		BEGIN
 			IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
 				operation := 'UPDATE';
+				script_id := NEW.id;
+				script_url := NEW.url;
 			ELSIF TG_OP = 'DELETE' THEN
 				operation := 'DELETE';
+				script_id := OLD.id;
+				script_url := OLD.url;
 			END IF;
 		
-			PERFORM pg_notify('injector_script_urls_channel', operation || ',' || NEW.id::text || ':' || NEW.url);
-			RETURN NEW;
+			PERFORM pg_notify('injector_script_urls_channel', operation || ',' || script_id::text || ':' || script_url);
+			
+			IF TG_OP = 'DELETE' THEN
+				RETURN OLD;
+			ELSE
+				RETURN NEW;
+			END IF;
 		END;
 		$$ LANGUAGE plpgsql;
 		
@@ -2015,15 +2026,26 @@ func createTriggers(dbConn *pgx.Conn) error {
 		$$
 		DECLARE
 			operation TEXT;
+			target_id UUID;
+			target_content JSONB;
 		BEGIN
 			IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
 				operation := 'UPDATE';
+				target_id := NEW.id;
+				target_content := NEW.target;
 			ELSIF TG_OP = 'DELETE' THEN
 				operation := 'DELETE';
+				target_id := OLD.id;
+				target_content := OLD.target;
 			END IF;
 		
-			PERFORM pg_notify('targets_channel', operation || ',' || NEW.id::text || ':' || NEW.target::jsonb::text);
-			RETURN NEW;
+			PERFORM pg_notify('targets_channel', operation || ',' || target_id::text || ':' || target_content::text);
+			
+			IF TG_OP = 'DELETE' THEN
+				RETURN OLD;
+			ELSE
+				RETURN NEW;
+			END IF;
 		END;
 		$$ LANGUAGE plpgsql;
 		
