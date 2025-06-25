@@ -20,7 +20,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # Test runner service - using Go image directly for simplicity
+  # Test runner service - using our custom Go test runner
   test-runner:
     image: golang:1.24-bookworm
     container_name: cartograph-test-runner
@@ -41,91 +41,9 @@ services:
         condition: service_healthy
     command: >
       sh -c "
-        echo '=== Installing dependencies ===' &&
-        go mod download &&
-        echo '=== Running Unit Tests ===' &&
-        go test -v ./internal/config/ &&
-        echo '=== Unit Tests Complete ===' &&
-        echo '' &&
-        echo '=== Starting Integration Tests ===' &&
-        echo 'Creating test certificates for build...' &&
         apt-get update -qq && apt-get install -y -qq openssl &&
-        mkdir -p certificates &&
-        openssl genrsa -out certificates/root-key-rsa.pem 2048 2>/dev/null &&
-        openssl req -new -x509 -key certificates/root-key-rsa.pem -out certificates/root-cert-rsa.pem -days 365 -subj '/C=US/O=Test/CN=Test Root CA RSA' 2>/dev/null &&
-        openssl ecparam -genkey -name prime256v1 -out certificates/root-key-ecdsa.pem 2>/dev/null &&
-        openssl req -new -x509 -key certificates/root-key-ecdsa.pem -out certificates/root-cert-ecdsa.pem -days 365 -subj '/C=US/O=Test/CN=Test Root CA ECDSA' 2>/dev/null &&
-        echo 'Generating CA certificates with test data...' &&
-        go run cmd/ca-generator/main.go -root-cert-in=certificates/root-cert-rsa.pem -root-key-in=certificates/root-key-rsa.pem -root-cert-pem=/tmp/root-cert-rsa.pem -root-cert-der=/tmp/root-cert-rsa.crt -root-key=/tmp/root-key-rsa.pem -intermediate-cert=/tmp/intermediate-cert-rsa.pem -intermediate-key=/tmp/intermediate-key-rsa.pem -rsa &&
-        go run cmd/ca-generator/main.go -root-cert-in=certificates/root-cert-ecdsa.pem -root-key-in=certificates/root-key-ecdsa.pem -root-cert-pem=/tmp/root-cert-ecdsa.pem -root-cert-der=/tmp/root-cert-ecdsa.crt -root-key=/tmp/root-key-ecdsa.pem -intermediate-cert=/tmp/intermediate-cert-ecdsa.pem -intermediate-key=/tmp/intermediate-key-ecdsa.pem &&
-        echo 'Copying generated certificates to build directories...' &&
-        mkdir -p internal/shared/http/certificates internal/shared/users/signing-certificates &&
-        cp /tmp/*.pem /tmp/*.crt internal/shared/http/certificates/ 2>/dev/null || true &&
-        cp /tmp/intermediate-cert-ecdsa.pem /tmp/intermediate-key-ecdsa.pem internal/shared/users/signing-certificates/ &&
-        echo 'Setting up runtime certificate directory (like production mount)...' &&
-        mkdir -p /ca-certificates &&
-        cp certificates/* /ca-certificates/ 2>/dev/null || true &&
-        echo 'Building cartograph binary...' &&
-        mkdir -p /tmp/mapper-scripts &&
-        cp internal/mapper/mapper.js internal/mapper/mapper-worker.js /tmp/mapper-scripts/ &&
-        go build -o /tmp/cartograph ./cmd/cartograph/ &&
-        BUILD_SUCCESS=\$$? &&
-        if [ \$$BUILD_SUCCESS -ne 0 ]; then
-          echo '❌ Build failed - integration test cannot proceed' &&
-          exit 1
-        fi &&
-        echo 'Starting cartograph server...' &&
-        /tmp/cartograph --mapper-script-dir=/tmp/mapper-scripts &
-        SERVER_PID=\$$! &&
-        echo 'Server started with PID: '\$$SERVER_PID &&
-        echo 'Waiting for server to start...' &&
-        sleep 15 &&
-        echo 'Testing if server is responding...' &&
-        for i in 1 2 3 4 5; do
-          if curl -f http://localhost:8000/api/v1/config/targets/ >/dev/null 2>&1; then
-            echo '✅ Server is responding on port 8000' &&
-            break
-          else
-            echo 'Attempt '\$$i': Server not ready yet, waiting...' &&
-            sleep 5
-          fi
-        done &&
-        echo 'Testing API endpoints...' &&
-        TARGETS_RESPONSE=\$$(curl -f http://localhost:8000/api/v1/config/targets/ 2>/dev/null) &&
-        if [ \$$? -eq 0 ]; then
-          echo '✅ API test passed' &&
-          echo 'Response: '\$$TARGETS_RESPONSE &&
-          echo 'Adding test target...' &&
-          TARGET_ID=\$$(curl -s -X POST http://localhost:8000/api/v1/config/targets/ -H 'Content-Type: application/json' -d '{\"ignore\": false, \"hosts\": [\"test.example.com\"]}' 2>/dev/null) &&
-          if [ ! -z \"\$$TARGET_ID\" ]; then
-            echo '✅ Created target with ID: '\$$TARGET_ID &&
-            echo 'Verifying target was added...' &&
-            if curl -s http://localhost:8000/api/v1/config/targets/ 2>/dev/null | grep -q 'test.example.com'; then
-              echo '✅ Target found in configuration' &&
-              echo 'Deleting target...' &&
-              curl -X DELETE \"http://localhost:8000/api/v1/config/targets/?id=\$$TARGET_ID\" >/dev/null 2>&1 &&
-              echo '✅ Target deletion completed' &&
-              sleep 2 &&
-              if ! curl -s http://localhost:8000/api/v1/config/targets/ 2>/dev/null | grep -q 'test.example.com'; then
-                echo '✅ Target successfully removed from configuration' &&
-                echo '🎉 ALL INTEGRATION TESTS PASSED! 🎉'
-              else
-                echo '⚠️ Target may still exist (but CRUD operations work)'
-              fi
-            else
-              echo '❌ Target not found after creation'
-            fi
-          else
-            echo '❌ Failed to create target'
-          fi
-        else
-          echo '❌ API endpoint not responding'
-        fi &&
-        echo '=== Integration Tests Complete ===' &&
-        echo 'Stopping server...' &&
-        kill \$$SERVER_PID 2>/dev/null || true &&
-        sleep 2 &&
-        echo '=== All Tests Completed ==='
+        go mod download &&
+        go run ./cmd/cartograph-test/
       "
 
 networks:
