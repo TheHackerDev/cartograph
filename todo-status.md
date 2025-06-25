@@ -1,10 +1,10 @@
 # Cartograph Critical Issues - Implementation Status
 
-## Current Status: ✅ ALL PHASES COMPLETE + MAJOR TESTING IMPROVEMENT
+## Current Status: ✅ ALL PHASES COMPLETE + MAJOR TESTING IMPROVEMENTS
 
-**Last Updated**: Wed Jun 25 16:36:42 EDT 2025  
+**Last Updated**: Wed Jun 25 16:46:12 EDT 2025  
 **Current Phase**: COMPLETED - All critical issues resolved + Testing Infrastructure Enhanced  
-**Overall Progress**: 3/3 Phases Complete + Bonus Testing Improvements
+**Overall Progress**: 3/3 Phases Complete + Multiple Testing Improvements
 
 ## 🎉 IMPLEMENTATION COMPLETE - ALL TESTS PASS! 
 
@@ -26,7 +26,7 @@
 - ✅ Target successfully removed from configuration 
 - ✅ **Full CRUD cycle works flawlessly** without any deadlocks or connection issues
 
-## 🚀 MAJOR TESTING INFRASTRUCTURE IMPROVEMENT
+## 🚀 MAJOR TESTING INFRASTRUCTURE IMPROVEMENTS
 
 **NEW**: Replaced complex shell-based testing with clean Go test runner (`cmd/cartograph-test/main.go`)
 
@@ -39,12 +39,20 @@
 - ✅ **Consistent logging** - Uses same logging framework as main application
 - ✅ **Easier debugging** - Clear phases and structured output vs complex shell logic
 
+**🎯 NEW: Production-Realistic Certificate Generation**:
+- ✅ **Uses actual CA generator** - Tests the same certificate generation code used in production
+- ✅ **No external dependencies** - Removed OpenSSL requirement from test environment
+- ✅ **Better integration testing** - Validates that our own certificate generation works correctly
+- ✅ **Cleaner test setup** - Generates both RSA and ECDSA certificate chains with one command each
+- ✅ **Simplified Docker Compose** - No need for `apt-get install openssl` in test container
+
 **Test Runner Features**:
 - Phase 1: Unit test execution with proper Go test framework
-- Phase 2: Certificate generation using existing CA tooling
+- Phase 2: Certificate generation using production CA generator (no OpenSSL required)
 - Phase 3: Integration testing with HTTP client and proper CRUD validation
 - Automatic server lifecycle management
 - Clean error reporting and structured logging
+- **NEW**: Production-identical certificate generation workflow
 
 ---
 
@@ -55,7 +63,7 @@
 | Phase 1: Database & Config | ✅ Complete | 5/5 | Critical database connection fixes |
 | Phase 2: CLI & Docker | ✅ Complete | 5/5 | Remove required flags, improve UX |
 | Phase 3: Testing & Docs | ✅ Complete | 6/6 | All tests pass, deadlock fixed |
-| **Bonus: Testing Infrastructure** | ✅ Complete | - | **Go-based test runner implemented** |
+| **Bonus: Testing Infrastructure** | ✅ Complete | - | **Go-based test runner + CA generator integration** |
 
 ---
 
@@ -95,9 +103,10 @@
 ### Bonus Improvements
 
 - [x] **New Go Test Runner**: Created `cmd/cartograph-test/main.go` with clean, maintainable test execution
-- [x] **Simplified Docker Compose**: Reduced `compose-test.yaml` from 136 lines to 25 lines of clean configuration
+- [x] **Simplified Docker Compose**: Reduced `compose-test.yaml` from 136 lines to clean configuration
 - [x] **Enhanced Test Coverage**: Comprehensive unit tests + integration tests with proper error handling
 - [x] **Better Developer Experience**: Clear test phases, structured logging, easy debugging
+- [x] **🎯 NEW: Production-Realistic Certificates**: Replaced OpenSSL with actual CA generator code
 
 ---
 
@@ -115,6 +124,7 @@
 - ✅ **Zero-Configuration Startup Achieved**: Application now starts with `docker compose up --build` with no manual configuration required
 - ✅ **All Critical Issues Resolved**: Database connections, configuration management, command line interface, and Docker configurations all working properly
 - ✅ **🎉 NEW: Modern Testing Infrastructure**: Complete rewrite of test execution from shell scripts to clean Go code
+- ✅ **🎯 NEW: Production-Identical Certificate Generation**: Tests now use the same CA generator as production deployments
 
 **Key Technical Fixes:**
 - Database connection initialization in `NewConfig()`
@@ -124,6 +134,7 @@
 - Comprehensive error handling and cleanup procedures
 - **CRITICAL FIX**: Fixed deadlock in `dbMonitor()` where `defer c.mu.Unlock()` was inside infinite loop
 - **NEW**: Go-based test runner with proper resource management and structured phases
+- **NEW**: Production CA generator integration for realistic certificate testing
 
 **Testing Results from Phase 3:**
 - ✅ **ALL UNIT TESTS PASS!** Database connections, concurrency, and configuration management all working
@@ -132,11 +143,21 @@
 - ✅ **Core Fixes Validated**: All critical issues from todo-plan.md are resolved and working
 - ✅ **🎉 ALL INTEGRATION TESTS PASS! 🎉** Complete end-to-end CRUD validation successful!
 - ✅ **NEW: Clean Test Runner**: Go-based testing is faster, more reliable, and easier to maintain
+- ✅ **NEW: Production Certificate Testing**: CA generator creates valid certificates that work in real server startup
 
 **Code Quality Improvements**:
-- **Before**: Complex 100+ line shell commands in Docker Compose YAML
-- **After**: Clean, maintainable Go code with proper error handling and structured phases
-- **Impact**: Much easier to debug, extend, and maintain the test suite
+- **Before**: Complex 100+ line shell commands with OpenSSL dependencies in Docker Compose YAML
+- **After**: Clean, maintainable Go code with production CA generator integration
+- **Impact**: Much easier to debug, extend, and maintain the test suite; tests are now production-realistic
+
+**Certificate Generation Improvements**:
+- **Before**: External OpenSSL dependency with complex shell commands to generate test certificates
+- **After**: Uses actual production CA generator (`cmd/ca-generator/main.go`) for certificate creation
+- **Benefits**: 
+  - Tests the same certificate generation workflow used in production
+  - No external dependencies required in test environment
+  - Validates that our CA generator works correctly
+  - Cleaner, more maintainable certificate setup
 
 ---
 
@@ -157,7 +178,7 @@
    - Always read this file before starting work to understand current state
    - Use this file to maintain context across different AI agent sessions
 
-**Testing**: Use `docker compose -f compose-test.yaml up --abort-on-container-exit` to run the comprehensive test suite with the new Go test runner.
+**Testing**: Use `docker compose -f compose-test.yaml up --abort-on-container-exit` to run the comprehensive test suite with the new Go test runner that uses production CA generator.
 
 ---
 

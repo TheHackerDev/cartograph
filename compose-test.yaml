@@ -41,7 +41,6 @@ services:
         condition: service_healthy
     command: >
       sh -c "
-        apt-get update -qq && apt-get install -y -qq openssl &&
         go mod download &&
         go run ./cmd/cartograph-test/
       "

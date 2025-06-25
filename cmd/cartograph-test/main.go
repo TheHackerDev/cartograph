@@ -28,6 +28,9 @@ type TestRunner struct {
 	serverCmd    *exec.Cmd
 }
 
+// main is the entry point for the Cartograph test runner.
+// It initializes the test environment and executes a comprehensive test suite
+// that validates database connections, certificate generation, and API functionality.
 func main() {
 	log.SetLevel(log.InfoLevel)
 	log.Info("🚀 Starting Cartograph Test Runner")
@@ -44,6 +47,10 @@ func main() {
 	log.Info("🎉 ALL TESTS PASSED! 🎉")
 }
 
+// runAllTests executes the complete test suite in three phases:
+// Phase 1 - Unit tests for configuration and database functionality
+// Phase 2 - Certificate generation using production CA generator
+// Phase 3 - Integration tests with full server startup and API validation
 func (tr *TestRunner) runAllTests() error {
 	// Phase 1: Unit Tests
 	log.Info("=== Phase 1: Running Unit Tests ===")
@@ -69,6 +76,9 @@ func (tr *TestRunner) runAllTests() error {
 	return nil
 }
 
+// runUnitTests executes Go unit tests for the internal/config package.
+// These tests validate database connection initialization, configuration management,
+// and concurrent access safety without requiring a full server startup.
 func (tr *TestRunner) runUnitTests() error {
 	log.Info("Running Go unit tests...")
 	cmd := exec.Command("go", "test", "-v", "./internal/config/")
@@ -82,10 +92,13 @@ func (tr *TestRunner) runUnitTests() error {
 	return nil
 }
 
+// setupCertificates prepares the certificate infrastructure for integration testing.
+// It creates necessary directories, generates both RSA and ECDSA certificate chains
+// using the production CA generator, and copies certificates to appropriate locations
+// for HTTP server operation and JWT signing.
 func (tr *TestRunner) setupCertificates() error {
 	log.Info("Creating certificate directories...")
 	dirs := []string{
-		"certificates",
 		"internal/shared/http/certificates",
 		"internal/shared/users/signing-certificates",
 		"/ca-certificates",
@@ -97,13 +110,8 @@ func (tr *TestRunner) setupCertificates() error {
 		}
 	}
 
-	log.Info("Generating root certificates...")
-	if err := tr.generateRootCertificates(); err != nil {
-		return fmt.Errorf("root certificate generation failed: %w", err)
-	}
-
-	log.Info("Running CA generator...")
-	if err := tr.runCAGenerator(); err != nil {
+	log.Info("Generating certificates using CA generator...")
+	if err := tr.generateCertificatesWithCAGenerator(); err != nil {
 		return fmt.Errorf("CA generation failed: %w", err)
 	}
 
@@ -111,63 +119,41 @@ func (tr *TestRunner) setupCertificates() error {
 	return tr.setupRuntimeCertificates()
 }
 
-func (tr *TestRunner) generateRootCertificates() error {
-	// Generate RSA root certificate
-	rsaCommands := [][]string{
-		{"openssl", "genrsa", "-out", "certificates/root-key-rsa.pem", "2048"},
-		{"openssl", "req", "-new", "-x509", "-key", "certificates/root-key-rsa.pem",
-			"-out", "certificates/root-cert-rsa.pem", "-days", "365",
-			"-subj", "/C=US/O=Test/CN=Test Root CA RSA"},
-	}
-
-	// Generate ECDSA root certificate
-	ecdsaCommands := [][]string{
-		{"openssl", "ecparam", "-genkey", "-name", "prime256v1", "-out", "certificates/root-key-ecdsa.pem"},
-		{"openssl", "req", "-new", "-x509", "-key", "certificates/root-key-ecdsa.pem",
-			"-out", "certificates/root-cert-ecdsa.pem", "-days", "365",
-			"-subj", "/C=US/O=Test/CN=Test Root CA ECDSA"},
-	}
-
-	allCommands := append(rsaCommands, ecdsaCommands...)
-
-	for _, cmdArgs := range allCommands {
-		cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
-		cmd.Stdout = io.Discard
-		cmd.Stderr = io.Discard
-
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("failed to run %s: %w", strings.Join(cmdArgs, " "), err)
-		}
-	}
-
-	return nil
-}
-
-func (tr *TestRunner) runCAGenerator() error {
-	// Generate RSA CA
+// generateCertificatesWithCAGenerator creates certificate chains using the production CA generator.
+// It generates both RSA and ECDSA certificate chains, each consisting of a root CA,
+// intermediate CA, and combined certificate file. This ensures the test environment
+// uses the same certificate generation process as production deployments.
+func (tr *TestRunner) generateCertificatesWithCAGenerator() error {
+	// Generate RSA CA (generates its own root certificate)
+	log.Info("Generating RSA certificate chain...")
 	rsaCmd := exec.Command("go", "run", "cmd/ca-generator/main.go",
-		"-root-cert-in=certificates/root-cert-rsa.pem",
-		"-root-key-in=certificates/root-key-rsa.pem",
 		"-root-cert-pem=/tmp/root-cert-rsa.pem",
 		"-root-cert-der=/tmp/root-cert-rsa.crt",
 		"-root-key=/tmp/root-key-rsa.pem",
 		"-intermediate-cert=/tmp/intermediate-cert-rsa.pem",
 		"-intermediate-key=/tmp/intermediate-key-rsa.pem",
+		"-combined-cert=/tmp/combined-cert-rsa.pem",
 		"-rsa")
+
+	rsaCmd.Stdout = os.Stdout
+	rsaCmd.Stderr = os.Stderr
 
 	if err := rsaCmd.Run(); err != nil {
 		return fmt.Errorf("RSA CA generation failed: %w", err)
 	}
 
-	// Generate ECDSA CA
+	// Generate ECDSA CA (generates its own root certificate)
+	log.Info("Generating ECDSA certificate chain...")
 	ecdsaCmd := exec.Command("go", "run", "cmd/ca-generator/main.go",
-		"-root-cert-in=certificates/root-cert-ecdsa.pem",
-		"-root-key-in=certificates/root-key-ecdsa.pem",
 		"-root-cert-pem=/tmp/root-cert-ecdsa.pem",
 		"-root-cert-der=/tmp/root-cert-ecdsa.crt",
 		"-root-key=/tmp/root-key-ecdsa.pem",
 		"-intermediate-cert=/tmp/intermediate-cert-ecdsa.pem",
-		"-intermediate-key=/tmp/intermediate-key-ecdsa.pem")
+		"-intermediate-key=/tmp/intermediate-key-ecdsa.pem",
+		"-combined-cert=/tmp/combined-cert-ecdsa.pem")
+
+	ecdsaCmd.Stdout = os.Stdout
+	ecdsaCmd.Stderr = os.Stderr
 
 	if err := ecdsaCmd.Run(); err != nil {
 		return fmt.Errorf("ECDSA CA generation failed: %w", err)
@@ -176,8 +162,12 @@ func (tr *TestRunner) runCAGenerator() error {
 	return nil
 }
 
+// setupRuntimeCertificates distributes generated certificates to their required locations.
+// It copies all certificate files to the HTTP certificates directory, places ECDSA
+// intermediate certificates in the JWT signing directory, and copies root certificates
+// to the runtime CA directory to replicate the production certificate layout.
 func (tr *TestRunner) setupRuntimeCertificates() error {
-	// Copy generated certificates to build directories
+	// Copy all generated certificate files to build directories
 	certFiles, err := filepath.Glob("/tmp/*.pem")
 	if err != nil {
 		return fmt.Errorf("failed to glob certificate files: %w", err)
@@ -190,15 +180,15 @@ func (tr *TestRunner) setupRuntimeCertificates() error {
 
 	allFiles := append(certFiles, crtFiles...)
 
+	// Copy to http certificates directory
 	for _, file := range allFiles {
-		// Copy to http certificates
 		destFile := filepath.Join("internal/shared/http/certificates", filepath.Base(file))
 		if err := copyFile(file, destFile); err != nil {
-			log.WithError(err).Warnf("Failed to copy %s", file)
+			log.WithError(err).Warnf("Failed to copy %s to http certificates", file)
 		}
 	}
 
-	// Copy specific files for JWT signing
+	// Copy specific files for JWT signing (ECDSA intermediate cert and key)
 	signingCerts := []string{
 		"/tmp/intermediate-cert-ecdsa.pem",
 		"/tmp/intermediate-key-ecdsa.pem",
@@ -211,8 +201,13 @@ func (tr *TestRunner) setupRuntimeCertificates() error {
 		}
 	}
 
-	// Copy certificates for runtime (like production mount)
-	rootCerts, _ := filepath.Glob("certificates/*")
+	// Copy root certificates for runtime (like production mount)
+	// Use the root certificates generated by CA generator
+	rootCerts := []string{
+		"/tmp/root-cert-rsa.pem",
+		"/tmp/root-cert-ecdsa.pem",
+	}
+
 	for _, file := range rootCerts {
 		destFile := filepath.Join("/ca-certificates", filepath.Base(file))
 		if err := copyFile(file, destFile); err != nil {
@@ -220,9 +215,14 @@ func (tr *TestRunner) setupRuntimeCertificates() error {
 		}
 	}
 
+	log.Info("✅ All certificates copied to runtime directories")
 	return nil
 }
 
+// runIntegrationTests performs end-to-end testing of the Cartograph server.
+// It starts a complete server instance with generated certificates, waits for
+// the server to become ready, and then executes comprehensive API tests including
+// full CRUD operations on target configurations.
 func (tr *TestRunner) runIntegrationTests() error {
 	// Start the server
 	log.Info("Starting Cartograph server...")
@@ -242,6 +242,10 @@ func (tr *TestRunner) runIntegrationTests() error {
 	return tr.runAPITests()
 }
 
+// startServer builds and launches the Cartograph server for integration testing.
+// It prepares the mapper scripts directory, builds a fresh cartograph binary,
+// and starts the server with test database configuration. The server process
+// is started as a background process with output captured for debugging.
 func (tr *TestRunner) startServer() error {
 	// Create mapper scripts directory
 	if err := os.MkdirAll("/tmp/mapper-scripts", 0755); err != nil {
@@ -285,6 +289,9 @@ func (tr *TestRunner) startServer() error {
 	return tr.serverCmd.Start()
 }
 
+// stopServer gracefully shuts down the Cartograph server process.
+// It terminates the server process and waits for it to exit completely,
+// ensuring proper cleanup of resources and connections.
 func (tr *TestRunner) stopServer() {
 	if tr.serverCmd != nil && tr.serverCmd.Process != nil {
 		log.Info("Stopping server...")
@@ -293,6 +300,10 @@ func (tr *TestRunner) stopServer() {
 	}
 }
 
+// waitForServer polls the server's API endpoint until it responds successfully.
+// It performs up to 10 attempts with 3-second intervals, testing the targets
+// endpoint to ensure the server is fully initialized and ready to handle requests.
+// This prevents race conditions in integration tests.
 func (tr *TestRunner) waitForServer() error {
 	client := &http.Client{Timeout: 5 * time.Second}
 
@@ -311,6 +322,11 @@ func (tr *TestRunner) waitForServer() error {
 	return fmt.Errorf("server failed to start within timeout")
 }
 
+// runAPITests executes comprehensive API validation tests against the running server.
+// It performs a complete CRUD cycle: GET (empty list), POST (create target),
+// GET (verify creation), DELETE (remove target), and GET (verify removal).
+// This validates that configuration management, database operations, and API
+// endpoints are functioning correctly end-to-end.
 func (tr *TestRunner) runAPITests() error {
 	client := &http.Client{Timeout: testTimeout}
 
@@ -419,6 +435,10 @@ func (tr *TestRunner) runAPITests() error {
 }
 
 // Helper functions
+
+// getDBConnectionString constructs a PostgreSQL connection string from environment variables.
+// It uses environment variables for database configuration with sensible defaults
+// for the test environment, allowing the test runner to connect to the test database.
 func getDBConnectionString() string {
 	host := getEnvOrDefault("DB_HOST", "postgres-test")
 	port := getEnvOrDefault("DB_PORT", "5432")
@@ -429,6 +449,10 @@ func getDBConnectionString() string {
 	return fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", user, password, host, port, dbname)
 }
 
+// getEnvOrDefault retrieves an environment variable value or returns a default value.
+// This utility function provides fallback values for configuration parameters,
+// enabling the test runner to work with sensible defaults when environment
+// variables are not explicitly set.
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -436,6 +460,10 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+// copyFile copies a file from source to destination path.
+// It handles file opening, creation, and data transfer with proper error handling
+// and resource cleanup. Used for distributing certificates and scripts to their
+// required locations during test setup.
 func copyFile(src, dst string) error {
 	sourceFile, err := os.Open(src)
 	if err != nil {
