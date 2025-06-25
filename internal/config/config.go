@@ -34,7 +34,16 @@ func NewConfig() (*Config, error) {
 	trainingMode := flag.Bool("training", false, "enable training mode")
 
 	// Mapper injection scripts directory
-	mapperScriptDir := flag.String("mapper-script-dir", "", "the location of the mapper script directory")
+	mapperScriptDir := flag.String("mapper-script-dir", "/mapper-injection-scripts", "Directory containing mapper injection scripts")
+
+	// Add custom usage function with comprehensive help text
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Cartograph HTTP Proxy for Internet Mapping\n\n")
+		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Options:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "\nFor more information, visit: https://cartograph.thehackerdev.com\n")
+	}
 
 	// Parse command-line flags
 	flag.Parse()
@@ -55,9 +64,6 @@ func NewConfig() (*Config, error) {
 	config.TrainingMode = *trainingMode
 
 	// Set mapper script directory
-	if *mapperScriptDir == "" {
-		return nil, fmt.Errorf("no mapper script directory provided with '--mapper-script-dir' flag")
-	}
 	config.MapperScriptDir = *mapperScriptDir
 
 	// Get a database connection pool
@@ -87,6 +93,13 @@ func NewConfig() (*Config, error) {
 		tmpConn.Release()
 		break
 	}
+
+	// Initialize the listen database connection for monitoring configuration changes
+	listenDbConn, listenDbConnErr := database.GetDbConn(config.DbConnString)
+	if listenDbConnErr != nil {
+		return nil, fmt.Errorf("unable to get listen database connection: %w", listenDbConnErr)
+	}
+	config.listenDbConn = listenDbConn
 
 	// Get all the target rule sets from the database
 	ctx := context.Background()
@@ -132,6 +145,13 @@ func NewConfig() (*Config, error) {
 	if rowsErr := rows.Err(); rowsErr != nil {
 		return nil, fmt.Errorf("unexpected error returned from database rows: %w", rowsErr)
 	}
+
+	// Start database monitor in background to listen for configuration changes
+	go func() {
+		if monitorErr := config.dbMonitor(context.Background()); monitorErr != nil {
+			log.WithError(monitorErr).Error("database monitor encountered an error")
+		}
+	}()
 
 	return config, nil
 }
@@ -204,6 +224,14 @@ type Config struct {
 	listenDbConn *pgx.Conn
 }
 
+// Close cleans up database connections and other resources used by the Config.
+func (c *Config) Close() error {
+	if c.listenDbConn != nil {
+		return c.listenDbConn.Close(context.Background())
+	}
+	return nil
+}
+
 // dbMonitor listens for updates to the targets table in the database.
 // When a change is detected, it updates the target and ignored maps in the Config.
 func (c *Config) dbMonitor(ctx context.Context) error {
@@ -235,6 +263,7 @@ func (c *Config) dbMonitor(ctx context.Context) error {
 		}
 
 		c.mu.Lock()
+		defer c.mu.Unlock()
 
 		// Update the target or ignored map
 		switch changeType {
