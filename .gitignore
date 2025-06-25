@@ -10,3 +10,4 @@ config.toml
 .DS_Store
 .vscode/
 cartograph.session.sql
+/tmp/
