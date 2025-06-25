@@ -40,6 +40,11 @@ func main() {
 	if configErr != nil {
 		log.WithError(configErr).Fatal("unable to initialize application configuration")
 	}
+	defer func() {
+		if closeErr := cfg.Close(); closeErr != nil {
+			log.WithError(closeErr).Error("error closing configuration")
+		}
+	}()
 
 	// Start injector
 	pluginInjector, injectorConfigErr := injector.NewInjector(cfg)
