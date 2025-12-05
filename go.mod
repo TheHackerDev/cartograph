@@ -11,7 +11,7 @@ require (
 	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
 	github.com/jackc/pgx/v5 v5.5.4
 	github.com/lib/pq v1.10.2
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.1
 	github.com/stretchr/testify v1.8.3
 	golang.org/x/crypto v0.35.0
 	golang.org/x/sync v0.11.0
